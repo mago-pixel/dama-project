@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Damas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            gap: 0;
+            border: 2px solid #333;
+        }
+
+        .square {
+            width: 50px;
+            height: 50px;
+            background-color: #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dark {
+            background-color: #333;
+        }
+
+        .piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .white-piece {
+            background-color: white;
+        }
+
+        .black-piece {
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="board"></div>
+
+    <script>
+        const board = document.getElementById('board');
+        const boardSize = 8;
+        let selectedPiece = null;
+        let selectedSquare = null;
+        const pieces = [];
+
+        function createBoard() {
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    if ((row + col) % 2 !== 0) {
+                        square.classList.add('dark');
+                        if (row < 3) {
+                            const piece = createPiece('black');
+                            square.appendChild(piece);
+                            pieces.push({ piece, row, col });
+                        } else if (row > 4) {
+                            const piece = createPiece('white');
+                            square.appendChild(piece);
+                            pieces.push({ piece, row, col });
+                        }
+                    }
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    square.addEventListener('click', () => handleSquareClick(square));
+                    board.appendChild(square);
+                }
+            }
+        }
+
+        function createPiece(color) {
+            const piece = document.createElement('div');
+            piece.classList.add('piece', color === 'white' ? 'white-piece' : 'black-piece');
+            piece.dataset.color = color;
+            piece.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handlePieceClick(piece);
+            });
+            return piece;
+        }
+
+        function handlePieceClick(piece) {
+            selectedPiece = piece;
+            selectedSquare = piece.parentElement;
+            highlightMoves(piece);
+        }
+
+        function handleSquareClick(square) {
+            if (selectedPiece) {
+                const selectedRow = parseInt(selectedSquare.dataset.row);
+                const selectedCol = parseInt(selectedSquare.dataset.col);
+                const targetRow = parseInt(square.dataset.row);
+                const targetCol = parseInt(square.dataset.col);
+
+                if (isValidMove(selectedPiece, selectedRow, selectedCol, targetRow, targetCol)) {
+                    square.appendChild(selectedPiece);
+                    selectedSquare.removeChild(selectedPiece);
+                    selectedPiece = null;
+                    clearHighlights();
+                    updatePieces();
+                }
+            }
+        }
+
+        function isValidMove(piece, fromRow, fromCol, toRow, toCol) {
+            const direction = piece.dataset.color === 'white' ? -1 : 1;
+            const isDiagonal = Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol);
+            const isOneStep = Math.abs(fromRow - toRow) === 1 && Math.abs(fromCol - toCol) === 1;
+            const isTwoSteps = Math.abs(fromRow - toRow) === 2 && Math.abs(fromCol - toCol) === 2;
+
+            if (isDiagonal) {
+                if (isOneStep) {
+                    return !squareHasPiece(toRow, toCol);
+                } else if (isTwoSteps) {
+                    const middleRow = (fromRow + toRow) / 2;
+                    const middleCol = (fromCol + toCol) / 2;
+                    return squareHasPiece(middleRow, middleCol) && !squareHasPiece(toRow, toCol);
+                }
+            }
+            return false;
+        }
+
+        function squareHasPiece(row, col) {
+            return pieces.some(p => p.row === row && p.col === col);
+        }
+
+        function highlightMoves(piece) {
+            const row = parseInt(selectedSquare.dataset.row);
+            const col = parseInt(selectedSquare.dataset.col);
+            const directions = piece.dataset.color === 'white' ? [-1] : [1];
+
+            directions.forEach(direction => {
+                const oneStep = { row: row + direction, col: col + 1 };
+                const twoStep = { row: row + direction * 2, col: col + 2 };
+                const oneStepLeft = { row: row + direction, col: col - 1 };
+                const twoStepLeft = { row: row + direction * 2, col: col - 2 };
+
+                if (isInBounds(oneStep.row, oneStep.col) && !squareHasPiece(oneStep.row, oneStep.col)) {
+                    highlightSquare(oneStep.row, oneStep.col);
+                }
+                if (isInBounds(twoStep.row, twoStep.col) && squareHasPiece(oneStep.row, oneStep.col) && !squareHasPiece(twoStep.row, twoStep.col)) {
+                    highlightSquare(twoStep.row, twoStep.col);
+                }
+                if (isInBounds(oneStepLeft.row, oneStepLeft.col) && !squareHasPiece(oneStepLeft.row, oneStepLeft.col)) {
+                    highlightSquare(oneStepLeft.row, oneStepLeft.col);
+                }
+                if (isInBounds(twoStepLeft.row, twoStepLeft.col) && squareHasPiece(oneStepLeft.row, oneStepLeft.col) && !squareHasPiece(twoStepLeft.row, twoStepLeft.col)) {
+                    highlightSquare(twoStepLeft.row, twoStepLeft.col);
+                }
+            });
+        }
+
+        function highlightSquare(row, col) {
+            const square = document.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+            if (square) {
+                square.style.backgroundColor = 'yellow';
+            }
+        }
+
+        function clearHighlights() {
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(square => {
+                if (square.classList.contains('dark')) {
+                    square.style.backgroundColor = '#333';
+                } else {
+                    square.style.backgroundColor = '#eee';
+                }
+            });
+        }
+
+        function isInBounds(row, col) {
+            return row >= 0 && row < boardSize && col >= 0 && col < boardSize;
+        }
+
+        function updatePieces() {
+            pieces.length = 0;
+            const pieceElements = document.querySelectorAll('.piece');
+            pieceElements.forEach(piece => {
+                const square = piece.parentElement;
+                pieces.push({ piece, row: parseInt(square.dataset.row), col: parseInt(square.dataset.col) });
+            });
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
